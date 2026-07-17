@@ -7,6 +7,14 @@ import { copyToClipboard, downloadText, readFileAsText } from '@/lib/utils';
 
 type ConversionMode = 'unicode-to-bijoy' | 'bijoy-to-unicode';
 
+function detectFormat(text: string): ConversionMode {
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    if (code >= 0x0980 && code <= 0x09ff) return 'unicode-to-bijoy';
+  }
+  return 'bijoy-to-unicode';
+}
+
 export default function Converter() {
   const [mode, setMode] = useState<ConversionMode>('unicode-to-bijoy');
   const [input, setInput] = useState('');
@@ -16,37 +24,34 @@ export default function Converter() {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const convert = useCallback(
-    (text: string) => {
-      if (!text) {
-        setOutput('');
-        return;
-      }
-      try {
-        const result = mode === 'unicode-to-bijoy' ? unicodeToBijoy(text) : bijoyToUnicode(text);
-        setOutput(result);
-      } catch (e) {
-        setOutput(`Error: ${e instanceof Error ? e.message : 'Conversion failed'}`);
-      }
-    },
-    [mode]
-  );
+  const runConversion = useCallback((text: string, currentMode: ConversionMode) => {
+    if (!text) {
+      setOutput('');
+      return;
+    }
+    try {
+      const result = currentMode === 'unicode-to-bijoy' ? unicodeToBijoy(text) : bijoyToUnicode(text);
+      setOutput(result);
+    } catch (e) {
+      setOutput(`Error: ${e instanceof Error ? e.message : 'Conversion failed'}`);
+    }
+  }, []);
 
   const handleInputChange = (value: string) => {
     setInput(value);
-    convert(value);
+    if (!value) {
+      setOutput('');
+      return;
+    }
+    const detected = detectFormat(value);
+    setMode(detected);
+    runConversion(value, detected);
   };
 
   const handleModeChange = (newMode: ConversionMode) => {
     setMode(newMode);
-    setPreviewBengali(false);
     if (input) {
-      try {
-        const result = newMode === 'unicode-to-bijoy' ? unicodeToBijoy(input) : bijoyToUnicode(input);
-        setOutput(result);
-      } catch {
-        setOutput('');
-      }
+      runConversion(input, newMode);
     }
   };
 
@@ -71,7 +76,13 @@ export default function Converter() {
     try {
       const text = await readFileAsText(file);
       setInput(text);
-      convert(text);
+      if (!text) {
+        setOutput('');
+        return;
+      }
+      const detected = detectFormat(text);
+      setMode(detected);
+      runConversion(text, detected);
     } catch {
       alert('Failed to read file. Please ensure it is a text file.');
     }
@@ -126,7 +137,7 @@ export default function Converter() {
         <div className="relative">
           <div className="flex items-center justify-between mb-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {mode === 'unicode-to-bijoy' ? 'Unicode Input' : 'Bijoy Input'}
+              Input (auto-detected)
             </label>
             <div className="flex gap-2">
               <button
@@ -139,7 +150,6 @@ export default function Converter() {
                 onClick={() => {
                   setInput('');
                   setOutput('');
-                  setPreviewBengali(false);
                 }}
                 className="text-xs px-3 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
               >
@@ -160,11 +170,7 @@ export default function Converter() {
             <textarea
               value={input}
               onChange={(e) => handleInputChange(e.target.value)}
-              placeholder={
-                mode === 'unicode-to-bijoy'
-                  ? 'Type or paste Unicode Bengali text here...\nExample: \u0986\u09AE\u09BF \u09AC\u09BE\u0982\u09B2\u09BE\u09AF\u09BC \u0997\u09BE\u09A8 \u0997\u09BE\u0988\u09A4\u09B0\u0964'
-                  : 'Type or paste Bijoy text here...\nExample: Avwg evsjvq Mvb MvB|'
-              }
+              placeholder="Paste or type Bengali text here...&#10;Auto-detects Unicode or Bijoy format."
               className="w-full h-64 p-4 rounded-xl bg-transparent resize-none focus:outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
               dir="auto"
             />
@@ -247,12 +253,11 @@ export default function Converter() {
       {/* Info Box */}
       <div className="mt-6 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
         <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
-          {mode === 'unicode-to-bijoy' ? 'About Unicode → Bijoy' : 'About Bijoy → Unicode'}
+          About Auto-Detect
         </h3>
         <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
-          {mode === 'unicode-to-bijoy'
-            ? 'Converts modern Unicode Bengali text to legacy Bijoy (SutonnyMJ) ANSI encoding. The raw output looks like English characters — this is normal. Use "Preview Bengali" to see how it renders with the SutonnyMJ font, or paste the raw text into Word/Photoshop and set the font to SutonnyMJ.'
-            : 'Converts legacy Bijoy (SutonnyMJ) ANSI encoded text to modern Unicode Bengali. The input should be text typed with Bijoy keyboard using SutonnyMJ font. URLs and emails are preserved during conversion.'}
+          Just paste or type any Bengali text — the converter auto-detects whether it's Unicode or Bijoy (ANSI) and switches direction automatically.
+          Unicode text (from Avro, websites, phones) gets converted to Bijoy. Bijoy text (from SutonnyMJ, old documents) gets converted to Unicode.
         </p>
       </div>
     </div>

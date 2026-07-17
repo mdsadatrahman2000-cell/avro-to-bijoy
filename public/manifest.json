@@ -1,0 +1,17 @@
+{
+  "name": "Bengali Unicode ↔ Bijoy Converter",
+  "short_name": "Bijoy Converter",
+  "description": "Free online converter between Bengali Unicode and Bijoy (SutonnyMJ) encoding",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

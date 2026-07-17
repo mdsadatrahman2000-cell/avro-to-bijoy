@@ -12,6 +12,7 @@ export default function Converter() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
+  const [previewBengali, setPreviewBengali] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,7 +39,7 @@ export default function Converter() {
 
   const handleModeChange = (newMode: ConversionMode) => {
     setMode(newMode);
-    // Re-convert existing input with new mode
+    setPreviewBengali(false);
     if (input) {
       try {
         const result = newMode === 'unicode-to-bijoy' ? unicodeToBijoy(input) : bijoyToUnicode(input);
@@ -92,6 +93,8 @@ export default function Converter() {
     setDragOver(false);
   };
 
+  const showPreviewToggle = mode === 'unicode-to-bijoy' && output;
+
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* Mode Tabs */}
@@ -136,6 +139,7 @@ export default function Converter() {
                 onClick={() => {
                   setInput('');
                   setOutput('');
+                  setPreviewBengali(false);
                 }}
                 className="text-xs px-3 py-1 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
               >
@@ -158,7 +162,7 @@ export default function Converter() {
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder={
                 mode === 'unicode-to-bijoy'
-                  ? 'Type or paste Unicode Bengali text here...\nExample: আমি বাংলায় গান গাই।'
+                  ? 'Type or paste Unicode Bengali text here...\nExample: \u0986\u09AE\u09BF \u09AC\u09BE\u0982\u09B2\u09BE\u09AF\u09BC \u0997\u09BE\u09A8 \u0997\u09BE\u0988\u09A4\u09B0\u0964'
                   : 'Type or paste Bijoy text here...\nExample: Avwg evsjvq Mvb MvB|'
               }
               className="w-full h-64 p-4 rounded-xl bg-transparent resize-none focus:outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
@@ -184,7 +188,20 @@ export default function Converter() {
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
               {mode === 'unicode-to-bijoy' ? 'Bijoy Output' : 'Unicode Output'}
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {showPreviewToggle && (
+                <button
+                  onClick={() => setPreviewBengali(!previewBengali)}
+                  className={`text-xs px-3 py-1 rounded transition-colors ${
+                    previewBengali
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-200 dark:hover:bg-purple-900/50'
+                  }`}
+                  title="Toggle preview of Bijoy output rendered with SutonnyMJ font"
+                >
+                  {previewBengali ? 'Showing Bengali' : 'Preview Bengali'}
+                </button>
+              )}
               <button
                 onClick={handleCopy}
                 disabled={!output}
@@ -206,13 +223,23 @@ export default function Converter() {
             </div>
           </div>
           <div className="rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50">
-            <textarea
-              value={output}
-              readOnly
-              placeholder="Converted text will appear here..."
-              className="w-full h-64 p-4 rounded-xl bg-transparent resize-none focus:outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
-              dir="auto"
-            />
+            {previewBengali && mode === 'unicode-to-bijoy' ? (
+              <div
+                className="w-full h-64 p-4 rounded-xl overflow-auto text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed"
+                style={{ fontFamily: "'SutonnyMJ', monospace", fontSize: '16px' }}
+                dir="ltr"
+              >
+                {output || <span className="text-gray-400 dark:text-gray-500">Preview will appear here...</span>}
+              </div>
+            ) : (
+              <textarea
+                value={output}
+                readOnly
+                placeholder="Converted text will appear here..."
+                className="w-full h-64 p-4 rounded-xl bg-transparent resize-none focus:outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                dir="auto"
+              />
+            )}
           </div>
         </div>
       </div>
@@ -224,7 +251,7 @@ export default function Converter() {
         </h3>
         <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
           {mode === 'unicode-to-bijoy'
-            ? 'Converts modern Unicode Bengali text to legacy Bijoy (SutonnyMJ) ANSI encoding. The output will look like random English characters — this is normal. Apply the SutonnyMJ font in your software (Word, Photoshop, etc.) to see the correct Bengali glyphs.'
+            ? 'Converts modern Unicode Bengali text to legacy Bijoy (SutonnyMJ) ANSI encoding. The raw output looks like English characters — this is normal. Use "Preview Bengali" to see how it renders with the SutonnyMJ font, or paste the raw text into Word/Photoshop and set the font to SutonnyMJ.'
             : 'Converts legacy Bijoy (SutonnyMJ) ANSI encoded text to modern Unicode Bengali. The input should be text typed with Bijoy keyboard using SutonnyMJ font. URLs and emails are preserved during conversion.'}
         </p>
       </div>

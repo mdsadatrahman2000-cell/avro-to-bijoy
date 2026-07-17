@@ -12,7 +12,7 @@ export default function Converter() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [previewBengali, setPreviewBengali] = useState(false);
+  const [previewBengali, setPreviewBengali] = useState(true);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

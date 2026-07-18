@@ -107,10 +107,6 @@ function moveReph(s: string): string {
   return result.join('');
 }
 
-function collapseDoubleHalant(s: string): string {
-  return s.replace(/্্/g, '্');
-}
-
 function swapHalantAfterKar(s: string): string {
   const arr = Array.from(s);
   const result: string[] = [];
@@ -141,41 +137,111 @@ function swapHalantAfterKar(s: string): string {
   return result.join('');
 }
 
-function movePreKars(s: string): string {
+function swapRaHalantKar(s: string): string {
+  // RA + Halant + Kar (with no halant before RA) → Kar + RA + Halant
+  const arr = Array.from(s);
+  let i = 1;
+  while (i < arr.length - 1) {
+    if (
+      arr[i] === '্' &&
+      arr[i - 1] === 'র' &&
+      (i - 2 < 0 || arr[i - 2] !== '্') &&
+      isKar(arr[i + 1])
+    ) {
+      // Swap: kar comes before RA + halant
+      [arr[i - 1], arr[i], arr[i + 1]] = [arr[i + 1], arr[i - 1], arr[i]];
+      i += 2;
+      continue;
+    }
+    i++;
+  }
+  return arr.join('');
+}
+
+function moveAllKars(s: string): string {
+  // In Bijoy byte order, kars appear BEFORE the consonant they modify.
+  // After glyph substitution, some kars are already in correct Unicode position
+  // (after their consonant), while others still precede their consonant.
+  //
+  // Key insight: if a kar is already preceded by a consonant, it's correctly placed.
+  // Otherwise, move it after the next consonant cluster.
+  //
+  // Special: e-kar (ে) + aa-kar (া) or ou-kar (ৗ) → o-kar (ো) or ou-kar (ৌ)
   const arr = Array.from(s);
   const result: string[] = [];
   let i = 0;
 
   while (i < arr.length) {
-    if (isPreKar(arr[i]) && i + 1 < arr.length && arr[i + 1] !== ' ') {
-      // Found pre-kar - walk past the consonant cluster
-      let j = 1;
-      while (i + j < arr.length && isConsonant(arr[i + j])) {
-        if (i + j + 1 < arr.length && arr[i + j + 1] === '্') {
-          j += 2; // skip consonant + halant
+    if (isKar(arr[i])) {
+      // Post-kars (া, ী, ু, ূ, ৃ, ৗ) that are already after a consonant are correctly placed.
+      // Pre-kars (ি, ে, ৈ) always need to be moved after the consonant cluster.
+      if (isPostKar(arr[i]) && i > 0 && isConsonant(arr[i - 1])) {
+        result.push(arr[i]);
+        i++;
+        continue;
+      }
+
+      // Collect consecutive kars before the consonant
+      const kars: string[] = [];
+      let k = i;
+      while (k < arr.length && isKar(arr[k])) {
+        kars.push(arr[k]);
+        k++;
+      }
+
+      // After the kars, expect a consonant cluster
+      if (k >= arr.length || !isConsonant(arr[k])) {
+        for (const kch of kars) result.push(kch);
+        i = k;
+        continue;
+      }
+
+      // Walk past the consonant cluster
+      let j = k;
+      while (j < arr.length && isConsonant(arr[j])) {
+        if (j + 1 < arr.length && arr[j + 1] === '্') {
+          j += 2;
         } else {
+          j++;
           break;
         }
       }
 
-      const cluster = arr.slice(i + 1, i + j + 1);
-      let emittedKar = arr[i];
-      let skipExtra = 0;
-
-      // Check for e-kar + aa-kar combination → o-kar
-      if (arr[i] === 'ে' && i + j + 1 < arr.length && arr[i + j + 1] === 'া') {
-        emittedKar = 'ো';
-        skipExtra = 1;
-      }
-      // Check for e-kar + ou-kar combination → ou-kar
-      else if (arr[i] === 'ে' && i + j + 1 < arr.length && arr[i + j + 1] === 'ৗ') {
-        emittedKar = 'ৌ';
-        skipExtra = 1;
+      // Don't let kars leak past sentence boundaries
+      if (j < arr.length && (arr[j] === '।' || arr[j] === '.' || arr[j] === '\n' || arr[j] === '\r')) {
+        for (const kch of kars) result.push(kch);
+        i = k;
+        continue;
       }
 
+      // Combine kars:
+      // Case 1: consecutive kars ে+া or ে+ৗ before consonant (†vK = ে+া+ক → কো)
+      // Case 2: e-kar before consonant, aa-kar/ou-kar after (†mv = ে+স+া → সো)
+      let combinedKar = kars[0];
+      let karSkip = 0;
+      if (kars.length >= 2 && kars[0] === 'ে') {
+        if (kars[1] === 'া') {
+          combinedKar = 'ো';
+          karSkip = 1;
+        } else if (kars[1] === 'ৗ') {
+          combinedKar = 'ৌ';
+          karSkip = 1;
+        }
+      } else if (kars.length === 1 && kars[0] === 'ে' && j < arr.length) {
+        if (arr[j] === 'া') {
+          combinedKar = 'ো';
+          karSkip = 1;
+        } else if (arr[j] === 'ৗ') {
+          combinedKar = 'ৌ';
+          karSkip = 1;
+        }
+      }
+
+      // Emit consonant cluster, then the kar
+      const cluster = arr.slice(k, j);
       result.push(...cluster);
-      result.push(emittedKar);
-      i += j + 1 + skipExtra;
+      result.push(combinedKar);
+      i = j + karSkip;
     } else {
       result.push(arr[i]);
       i++;
@@ -212,7 +278,8 @@ function reorder(text: string): string {
     result = result.replace(pattern, replacement);
   }
   result = swapHalantAfterKar(result);
-  result = movePreKars(result);
+  result = swapRaHalantKar(result);
+  result = moveAllKars(result);
   result = moveNuktaAfterKar(result);
   return result;
 }

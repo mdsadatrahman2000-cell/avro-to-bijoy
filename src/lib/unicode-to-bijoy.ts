@@ -38,8 +38,28 @@ function isBengaliPostKar(char: string): boolean {
 // In Bijoy:   pre-kar + consonant (e.g., w + g = wg for মি)
 // ============================================================================
 
-function preprocessUnicode(text: string): string {
+function decomposeCombinedKars(text: string): string {
+  // Step 1: Decompose combined kars: ো → ে+া, ৌ → ে+ৗ
+  // These are single Unicode code points but Bijoy needs them as two separate kars.
+  // Must happen BEFORE consonant+pre-kar reorder so ে appears after its consonant.
   const arr = Array.from(text);
+  const result: string[] = [];
+  for (const ch of arr) {
+    if (ch === 'ো') {
+      result.push('ে', 'া');
+    } else if (ch === 'ৌ') {
+      result.push('ে', 'ৗ');
+    } else {
+      result.push(ch);
+    }
+  }
+  return result.join('');
+}
+
+function preprocessUnicode(text: string): string {
+  // First pass: decompose combined kars
+  const decomposed = decomposeCombinedKars(text);
+  const arr = Array.from(decomposed);
   const result: string[] = [];
   let i = 0;
 
@@ -93,7 +113,13 @@ function preprocessUnicode(text: string): string {
       if (j < arr.length && isBengaliPreKar(arr[j])) {
         // Emit pre-kar first, then consonant cluster
         const cluster = arr.slice(i, j);
-        result.push(arr[j]); // pre-kar
+        // For e-kar (ে), use † (U+2020) when placing before consonant.
+        // † is the pre-consonant Bijoy variant; ‡ (U+2021) is post-consonant.
+        if (arr[j] === 'ে') {
+          result.push('\u2020'); // †
+        } else {
+          result.push(arr[j]); // pre-kar
+        }
         result.push(...cluster); // consonant cluster
         i = j + 1;
         continue;

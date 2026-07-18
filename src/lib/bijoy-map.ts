@@ -64,6 +64,7 @@ export const bijoyToUnicodeMap: Record<string, string> = {
   't': 'ঃ',
   'u': 'ঁ',
   '•': 'ঙ্',
+  '\u2013': 'ু',  // en-dash variant u-kar
 
   // Numbers
   '0': '০',
@@ -110,6 +111,7 @@ export const bijoyToUnicodeMap: Record<string, string> = {
   '\u2019': '্তু',
   '‹': '্ক',
   'Œ': '্ক্র',
+ '\u201C': 'চ্',   // left double quote → চ্ (variant)
   '—': '্ত',
   '˜': 'দ্',
   '™': 'দ্',
@@ -128,6 +130,7 @@ export const bijoyToUnicodeMap: Record<string, string> = {
   '©': 'র্',
   'ª': '্র',
   '«': '্র',
+  'Ö': '্র',
   '¬': '্ল',
   '\u00AD': '্ল',
   '®': 'ষ্',
@@ -363,7 +366,10 @@ const unicodeToBijoyEntries: [string, string][] = [
   ['রু', 'i"'],
   ['রূ', 'iƒ'],
   ['্র', 'ª'],
+  ['্র', '«'],
+  ['্র', 'Ö'],
   ['্য', '¨'],
+  ['চ্', '\u201C'],
 
   // Vowels
   ['অ', 'A'],
@@ -530,7 +536,11 @@ export const protectedUrlRegex = /https?:\/\/\S+|ftp:\/\/\S+|www\.[^\s,;()<>"'�
 
 export function isConsonant(char: string): boolean {
   const code = char.charCodeAt(0);
-  return code >= 0x0995 && code <= 0x09B9; // ক to হ
+  // ক to হ (U+0995–U+09B9), plus ড় U+09DC, ঢ় U+09DD, য় U+09DF,
+  // ৎ U+09CE (khanda ta)
+  return (code >= 0x0995 && code <= 0x09B9) ||
+    code === 0x09DC || code === 0x09DD || code === 0x09DF ||
+    code === 0x09CE;
 }
 
 // ============================================================================
